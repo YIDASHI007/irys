@@ -1,0 +1,16 @@
+{
+  "site_key": "0x4AAAAAAA6vnrvBCtS4FAl-",
+  "website_url": "https://irys.xyz/faucet",
+  "address_file": "config/address.txt",
+  "proxy_file": "config/proxy.txt",
+  "captcha_wait_time": 60,
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+  
+  "local_captcha_urls": [
+    "http://192.168.2.62:3000/"
+  ],
+  
+  "yescaptcha_api_key": "",
+  
+  "2captcha_api_key": ""
+}
