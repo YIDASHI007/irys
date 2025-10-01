@@ -1,3 +1,0 @@
-evm_key_1
-evm_key_2
-evm_key_3
