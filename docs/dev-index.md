@@ -252,6 +252,7 @@ docs/
 ├── ai-ocr-module.md        M15 独立 PRD
 ├── dev-workflow.md         🎯 开发步骤(你的地图)
 ├── dev-index.md            🎯 功能索引(本文档)
+├── page-structure.md       🎯 完整页面结构树(~92 个页面)
 ├── glossary.md             术语表
 ├── out-of-scope.md         不做清单
 └── open-questions.md       待确认问题

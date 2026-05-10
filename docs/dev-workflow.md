@@ -2,6 +2,11 @@
 
 > **这是你的主开发手册。每天打开它,从上往下做。**
 >
+> 📍 **配套文档**:
+> - 做页面时查 [`docs/page-structure.md`](./page-structure.md) - 完整页面结构树
+> - 找功能文档查 [`docs/dev-index.md`](./dev-index.md) - 功能索引表
+> - Cursor 自动读取 [`.cursorrules`](../.cursorrules) - AI 规则
+>
 > 📌 **使用说明**:
 > 1. 从 Step 1 开始,一步一步做
 > 2. 每步完成后,**对照验收清单打勾** ✅

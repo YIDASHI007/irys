@@ -46,6 +46,7 @@ Irys 是一个面向媒体/连锁企业的**中台管理系统**，集中管理�
 | 文档 | 说明 |
 |------|------|
 | **[docs/dev-workflow.md](./docs/dev-workflow.md)** | 🎯 **主开发手册 · 92 步骤清单（每步含 AI 提示词 + 验收清单）** |
+| **[docs/page-structure.md](./docs/page-structure.md)** | 🗺️ **完整页面结构树 · ~92 个页面的路由/功能/难度/工时** |
 | [docs/dev-index.md](./docs/dev-index.md) | 📚 功能 → 文档 索引表（做什么功能查什么文档） |
 | [.cursorrules](./.cursorrules) | 🤖 Cursor AI 规则文件（自动生效，让 AI 按小白模式回复） |
 
