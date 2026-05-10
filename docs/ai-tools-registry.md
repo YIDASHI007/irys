@@ -9,13 +9,14 @@
 
 ## 0. 工具总览
 
-MVP 阶段共设计 **30 个工具**：15 个查询工具 + 15 个写入工具。
+MVP 阶段共设计 **32 个工具**：15 个查询工具 + 15 个写入工具 + 2 个 OCR 专属工具。
 
-| 类别 | 数量 | 需确认 | 风险等级 |
-|------|-----|--------|---------|
-| 查询类（只读） | 15 | ❌ | — |
-| 写入类（单体） | 10 | ✅ | LOW / MEDIUM |
-| 写入类（批量/敏感） | 5 | ✅✅ | HIGH |
+| 类别 | 数量 | 需确认 | 风险等级 | 角色限制 |
+|------|-----|--------|---------|---------|
+| 查询类（只读） | 15 | ❌ | — | 按角色数据权限 |
+| 写入类（单体） | 10 | ✅ | LOW / MEDIUM | 按角色权限 |
+| 写入类（批量/敏感） | 5 | ✅✅ | HIGH | 按角色权限 |
+| **AI OCR 专属（M15）** | **2** | 1 个需确认 | HIGH | **仅 SUPER_ADMIN** |
 
 ---
 
@@ -653,6 +654,74 @@ auditExtra:
 
 ---
 
+## 3.7 AI OCR 数据录入（M15 专属，仅 SUPER_ADMIN）
+
+> ⚠️ 以下工具**仅 `SUPER_ADMIN` 角色可调用**，硬编码限制，不可配置覆盖。
+> 详见 [ai-ocr-module.md](./ai-ocr-module.md)
+
+#### T31 · `ocr_parse_store_data` 🔴 HIGH (SUPER_ADMIN ONLY)
+
+```yaml
+name: ocr_parse_store_data
+description: 调用 AI 视觉模型识别店铺收银截图，返回结构化数据（不直接入库，需走核对流程）
+parameters:
+  type: object
+  required: [imageJobId, storeId, expectedDate]
+  properties:
+    imageJobId:
+      type: string
+      description: OCRJob ID（用户已通过 /ai-ocr/jobs 接口创建并上传）
+    storeId:
+      type: string
+      description: 门店 ID（用于上下文注入 Prompt）
+    expectedDate:
+      type: string
+      description: 预期营业日期（YYYY-MM-DD）
+requireConfirmation: false   # 本身不写数据，但结果必须经 T32 走核对流程
+severity: HIGH
+requiredRoles: [SUPER_ADMIN]  # ⚠️ 硬编码
+requiredPermissions: []
+returnValue:
+  jobId: string
+  result: StoreDailyOCRResult
+  confidence: number
+  fieldConfidences: object
+  isValid: boolean
+  estimatedCost: string
+```
+
+#### T32 · `submit_ocr_reviewed_data` 🔴 HIGH (SUPER_ADMIN ONLY)
+
+```yaml
+name: submit_ocr_reviewed_data
+description: 人工核对后提交 OCR 识别结果入库（写入 StoreDailyData，source=AI_OCR）
+parameters:
+  type: object
+  required: [jobId, finalData]
+  properties:
+    jobId:
+      type: string
+    finalData:
+      type: object
+      description: 用户核对后的最终数据（符合 StoreDailyOCRResult Schema）
+    editedFields:
+      type: array
+      items: { type: string }
+      description: 用户修改过的字段名列表
+    reviewDurationSeconds:
+      type: integer
+      description: 核对耗时秒数（反作弊审计）
+requireConfirmation: true
+severity: HIGH
+requiredRoles: [SUPER_ADMIN]
+requiredPermissions: [store_data:create]
+auditExtra:
+  - flagReason: "AI OCR 数据入库"
+  - notifyRelatedMerchant: true
+```
+
+---
+
 ## 4. Tool 调用流程完整示例
 
 ### 场景：销售小李问"帮我把上个月没跟进的线索都转成公海"
@@ -772,6 +841,7 @@ System Prompt: 约 800 tokens
 | Sprint 4（AI 操作） | T16, T17, T18, T21, T22 | LOW/MEDIUM 写入 |
 | Sprint 5（AI 操作） | T23, T24, T25, T26, T27, T28, T29 | 补充写入 + 导出 |
 | Sprint 6（高风险） | T12, T13, T19, T20, T30 | 高风险确认流 |
+| **Sprint 7（M15 OCR）** | **T31, T32** | **AI OCR 专属工具，仅 SUPER_ADMIN** |
 
 ---
 

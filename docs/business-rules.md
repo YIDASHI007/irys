@@ -24,6 +24,7 @@ BR-9XX  小程序
 BR-10XX 数据看板 / 导出
 BR-11XX AI 助手
 BR-12XX 通用 / 技术
+BR-13XX AI OCR 数据录入（M15）
 ```
 
 ---
@@ -471,6 +472,119 @@ System Prompt 中必须包含："不确定时问用户，不要猜测"。
 - 错误消息
 - 接口响应
 - 审计日志
+
+---
+
+## 十三、AI OCR 数据录入（BR-13XX）
+
+> 详细设计见 [ai-ocr-module.md](./ai-ocr-module.md)
+
+### BR-1301 · M15 功能仅 SUPER_ADMIN 可用 ⚠️
+M15 AI OCR 数据录入模块**硬编码限制**为仅 `SUPER_ADMIN` 角色可用。
+即使其他角色配置了 `store_data:create` 等权限也不能访问此模块。
+Controller 守卫 + Service 层双重校验。
+
+### BR-1302 · 永远人工核对
+AI OCR 返回的数据**永不自动入库**，必须经用户在核对页面逐字段确认后才能写入数据库。
+即使 `confidence = 1.0` 也必须人工点击"确认提交"。
+
+### BR-1303 · 图片 SHA-256 全局去重
+所有上传的图片通过 SHA-256 计算唯一 hash。
+同一 hash 的图片在系统中只允许存在一份，重复上传直接拒绝并告知"图片已被使用"。
+
+### BR-1304 · 同店同日唯一性
+`(storeId, businessDate)` 为 `StoreDailyData` 唯一键。
+如已存在记录且想通过 OCR 重新录入：
+- 必须先走"撤销"流程（24 小时内可撤销）
+- 超过 24 小时需走数据修正审批流
+
+### BR-1305 · OCR 识别结果不可修改
+`OCRJob.rawResult` 一旦写入永不修改（AI 原始输出快照）。
+用户的修改记录在 `finalResult` 和 `editedFields` 中，保留对比。
+
+### BR-1306 · 置信度阈值
+```
+confidence >= 0.95  → 高置信（默认字段展示）
+confidence >= 0.80  → 中置信（字段轻度高亮）
+confidence >= 0.60  → 低置信（字段红色高亮）
+confidence <  0.60  → 强制要求用户修改或重传
+```
+
+### BR-1307 · 核对耗时告警
+用户核对提交耗时 < 5 秒 → 审计日志标记 `fastReview=true`。
+MVP 不阻止提交，但触发告警。v2 考虑强制最小核对时长。
+
+### BR-1308 · EXIF 时间校验
+图片 EXIF 拍摄时间与录入营业日期相差 > 48 小时 → 标记 `suspicious`。
+图片 EXIF 数据被清除 → 同样标记 `suspicious`。
+标记 `suspicious` 的数据在异常数据清单中重点展示。
+
+### BR-1309 · AI 判断无效的图片处理
+Kimi 返回 `isValid: false` 的图片：
+- 不允许用户继续核对流程
+- 图片保留 7 天作为反作弊证据
+- 记录 `invalidReason` 到审计
+
+### BR-1310 · 识别失败图片保留期
+- 成功入库的图片：保留 **2 年**
+- 核对后驳回的图片：保留 **30 天**
+- AI 识别失败的图片：保留 **7 天**
+- 反作弊告警的图片：保留 **1 年**
+- 过期自动清理（OSS 生命周期规则）
+
+### BR-1311 · OCR 只能用全局 API Key
+M15 不允许使用用户个人 API Key，只能使用 `AIProviderConfig.scope = GLOBAL` 的 Key。
+理由：M15 具备写入业务数据的能力，个人 Key 无此授权。
+
+### BR-1312 · OCR 配额独立管理
+M15 有独立的配额池：
+- 全局每日最多识别 500 张图
+- 全局每日成本上限 ¥50
+- 超管单人每日最多 100 张
+- 达到 80% 预警，达到 100% 熔断
+- 配额与 M14 AI 助手配额**分开计算**
+
+### BR-1313 · OCR 审计独立表
+M15 操作写入 `AIOcrAuditLog` 表，与 `AuditLog`、`AIActionLog` 分离。
+字段包含完整的图片 hash、AI 结果、修改痕迹、操作者信息。
+**永久保留，不可删除、不可修改。**
+
+### BR-1314 · OCR 任务超时清理
+`OCRJob` 状态为 `PENDING` / `AWAITING_REVIEW` 超过 24 小时：
+- 自动改为 `ABANDONED`
+- 图片从 OSS 移到归档存储
+- 可通过审计日志追溯
+
+### BR-1315 · 支付方式合计校验
+OCR 识别到支付方式分布时：
+- `sum(paymentMethods[].amount)` 应 ≈ `totalRevenue`（误差 ≤ 1%）
+- 误差超过 1% → 异常标记 `ANML-05`
+- 用户必须核对并解决冲突才能提交
+
+### BR-1316 · 分时段合计校验
+OCR 识别到分时段数据时：
+- `sum(timePeriods[].revenue)` 应 ≈ `totalRevenue`（误差 ≤ 5%）
+- 误差超过 5% → 异常标记 `ANML-06`
+
+### BR-1317 · 非营业日拒绝入库
+OCR 识别的营业日期对应的门店状态 ≠ `OPENED`（如门店处于 `CLOSED`、`PLANNING`）→ 拒绝入库。
+
+### BR-1318 · Prompt 模板版本化
+所有 OCR Prompt 模板存入 `OCRPromptTemplate` 表。
+每次 OCR 调用记录使用的 `templateVersion`。
+模板变更需走审批流（MVP：超管手工变更）。
+
+### BR-1319 · OCR 场景扩展限制
+MVP 仅启用 `OCRScene.STORE_DAILY_DATA` 一个场景。
+代码预留其他枚举值但前端不展示。
+新场景上线必须通过新的 PRD 评审。
+
+### BR-1320 · 已入库 OCR 数据撤销
+SUPER_ADMIN 可在入库后 24 小时内撤销：
+- 需要二次确认
+- 撤销后 `StoreDailyData` 软删除
+- 图片保留
+- 审计日志记录撤销原因
 
 ---
 

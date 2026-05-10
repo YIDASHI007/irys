@@ -38,7 +38,8 @@ Irys 是一个面向媒体/连锁企业的**中台管理系统**，集中管理�
 | 文档 | 说明 |
 |------|------|
 | [docs/ai-security.md](./docs/ai-security.md) | 🛡️ AI 安全规则、权限模型、黑名单、审计 |
-| [docs/ai-tools-registry.md](./docs/ai-tools-registry.md) | 🔧 30 个 AI 工具定义（15 查询 + 15 写入） |
+| [docs/ai-tools-registry.md](./docs/ai-tools-registry.md) | 🔧 32 个 AI 工具定义（15 查询 + 15 写入 + 2 OCR） |
+| [docs/ai-ocr-module.md](./docs/ai-ocr-module.md) | 🖼️ M15 AI OCR 数据录入详细 PRD |
 
 ### 待产出（后续阶段）
 
@@ -70,7 +71,8 @@ L2 通用层
 ├─ M2  工作台
 ├─ M7  合同与审批
 ├─ M12 消息通知
-└─ M14 AI 智能助手  ⭐
+├─ M14 AI 智能助手（对话型）  ⭐
+└─ M15 AI OCR 数据录入（视觉型）⭐
 
 L3 业务层
 ├─ M3  CRM 客户中心
@@ -87,7 +89,7 @@ L4 触点层
 
 ### MVP 优先级（MoSCoW）
 
-- 🟥 **Must**：M1, M2, M3, M4, M6, M13, M14
+- 🟥 **Must**：M1, M2, M3, M4, M6, M13, M14, M15
 - 🟨 **Should**：M5, M7, M11, M12
 - 🟩 **Could**：M8, M9, M10
 - 🟦 **Won't**：详见 [out-of-scope.md](./docs/out-of-scope.md)
@@ -184,6 +186,13 @@ cd irys
 | D7 | 财务 MVP 不对接支付，只记账 | 2026-05-10 |
 | D8 | 达人探店作为门店子模块 | 2026-05-10 |
 | D9 | 门店数据采集：邮件+AI识别+手工 三路并行 | 2026-05-10 |
+| **D10** | **M15 AI OCR 独立模块，仅 SUPER_ADMIN 可用** | **2026-05-10** |
+| D15-1 | M15 框架通用，MVP 只跑门店数据 | 2026-05-10 |
+| D15-2 | M15 识别 10-15 个核心字段 | 2026-05-10 |
+| D15-3 | M15 仅 SUPER_ADMIN 角色可用（硬编码） | 2026-05-10 |
+| D15-4 | M15 单店单日录入 | 2026-05-10 |
+| D15-5 | M15 复用 Kimi K2.6 多模态 | 2026-05-10 |
+| D15-6 | M15 永远人工核对 | 2026-05-10 |
 
 ---
 
@@ -222,7 +231,8 @@ irys/
 │   ├── out-of-scope.md       本期不做
 │   ├── open-questions.md     待确认问题
 │   ├── ai-security.md        AI 安全规则
-│   └── ai-tools-registry.md  AI 工具清单
+│   ├── ai-tools-registry.md  AI 工具清单
+│   └── ai-ocr-module.md      M15 AI OCR 数据录入详细 PRD ⭐
 ├── .gitattributes
 └── IrysGame_Linux_1.1.zip    (遗留文件，后续会清理)
 ```

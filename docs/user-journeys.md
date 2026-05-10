@@ -329,45 +329,132 @@ sequenceDiagram
 
 ## 8. 门店数据录入（多渠道）
 
+> **⚠️ 重要**：其中"AI 识别"路径仅 `SUPER_ADMIN` 角色可用。
+> 完整设计见 [ai-ocr-module.md](./ai-ocr-module.md)
+
 ```mermaid
 flowchart TD
-    Start([开始当日数据录入]) --> Channel{数据来源？}
-    Channel -->|官方 API| API[系统自动拉取]
-    Channel -->|邮件导出| Email[定时任务扫邮箱]
-    Channel -->|浏览器插件| Plugin[员工点插件抓取]
-    Channel -->|AI 识别| Photo[员工上传截图]
-    Channel -->|手工| Manual[员工填表单]
+    Start([开始当日数据录入]) --> Who{谁在操作？}
+    Who -->|内部员工<br/>其他角色| NonAdmin[非 OCR 路径]
+    Who -->|SUPER_ADMIN| AdminChoice
+    Who -->|加盟商| MerchantPath[加盟商自助录入<br/>仅手工/插件]
+
+    AdminChoice{超管选择数据来源？}
+    AdminChoice -->|官方 API| API[系统自动拉取]
+    AdminChoice -->|邮件导出| Email[定时任务扫邮箱]
+    AdminChoice -->|浏览器插件| Plugin[员工点插件抓取]
+    AdminChoice -->|AI OCR 识别| OCRPath[进入 M15 流程 ⭐]
+    AdminChoice -->|手工| Manual[员工填表单]
+
+    NonAdmin --> NonAdminChoice{选择数据来源？}
+    NonAdminChoice -->|API/邮件/插件/手工| NormalFlow[正常流程]
+    NonAdminChoice -.->|尝试 AI OCR| Denied[❌ 拒绝: 仅超管可用]
+
+    OCRPath --> SelectStore[选择门店 + 日期]
+    SelectStore --> UploadImages[上传 1-5 张截图]
+    UploadImages --> ClientCheck{客户端预校验}
+    ClientCheck -->|不合格| ShowClientErr[格式/尺寸错误]
+    ClientCheck -->|合格| HashCheck[SHA-256 hash 计算]
+    HashCheck --> DupCheck{全局 hash 查重 BR-1303}
+    DupCheck -->|已存在| ShowDup[❌ 图片已使用]
+    DupCheck -->|新图| UploadOSS[OSS 直传]
+    UploadOSS --> CallKimi[调用 Kimi K2.6 多模态]
+    CallKimi --> ExtractJson[解析 JSON + 置信度]
+    ExtractJson --> ValidCheck{AI isValid?}
+    ValidCheck -->|false| RejectImage[❌ 拒绝: AI 判定无效]
+    ValidCheck -->|true| ConfCheck{整体置信度}
+    ConfCheck -->|<0.6| ForceRetry[❌ 要求重传清晰图]
+    ConfCheck -->|>=0.6| ReviewPage[核对页面<br/>BR-1302 永远人工核对]
 
     API --> Parse1[解析标准响应]
-    Email --> Parse2[解析 CSV/Excel 附件]
+    Email --> Parse2[解析 CSV/Excel]
     Plugin --> Parse3[解析页面 DOM]
-
-    Parse1 --> PreFill
-    Parse2 --> PreFill
-    Parse3 --> PreFill
-
-    Photo --> OCR[调用通义 VL / GPT-4V]
-    OCR --> Conf{置信度 > 0.8?}
-    Conf -->|否| HighRiskReview[强制人工核对]
-    Conf -->|是| PreFill
-
-    PreFill[预填表单]
     Manual --> Form
-    PreFill --> Form
-    HighRiskReview --> Form
+    Parse1 --> Form
+    Parse2 --> Form
+    Parse3 --> Form
 
-    Form[人工核对页面]
+    Parse1 --> PreFill1[预填表单]
+    Parse2 --> PreFill2[预填表单]
+    Parse3 --> PreFill3[预填表单]
+    PreFill1 --> Form
+    PreFill2 --> Form
+    PreFill3 --> Form
+
+    ReviewPage --> FieldCheck[逐字段核对]
+    FieldCheck --> LowConfHighlight[低置信字段红色高亮]
+    LowConfHighlight --> EditField{需修改?}
+    EditField -->|是| UserEdit[用户修改 + 留痕]
+    EditField -->|否| FinalConfirm
+    UserEdit --> TrackEdit[记录 editedFields]
+    TrackEdit --> FinalConfirm[提交前二次确认]
+
+    Form[人工填写/核对]
     Form --> Check{数据有异常？BR-507}
+    FinalConfirm --> Check
+
     Check -->|是| FlagAnomaly[标记异常 + 原因]
     Check -->|否| SubmitOK[正常提交]
     FlagAnomaly --> SubmitAnomaly[异常提交]
-    SubmitOK --> Dedupe{storeId+date 已存在？}
+    SubmitOK --> Dedupe{storeId+date 已存在？BR-1304}
     SubmitAnomaly --> Dedupe
-    Dedupe -->|是| CompareVersion[保留历史版本, 按 BR-506 决定主数据]
+
+    Dedupe -->|是<br/>24h内| AllowOverride[超管确认覆盖]
+    Dedupe -->|是<br/>超24h| RequireApproval[需数据修正审批]
     Dedupe -->|否| Insert[插入新记录]
-    CompareVersion --> Audit
-    Insert --> Audit[写入审计 + 通知]
+    AllowOverride --> Insert
+    RequireApproval --> Insert
+    Insert --> SourceTag[标记 source=AI_OCR/MANUAL/...]
+    SourceTag --> MainData[按 BR-506 决定主数据]
+    MainData --> Audit[写入审计 + 通知]
     Audit --> Dashboard([进入看板数据])
+
+    MerchantPath --> Form
+```
+
+### 8.1 M15 AI OCR 独立详细流程（SUPER_ADMIN）
+
+```mermaid
+sequenceDiagram
+    participant U as SUPER_ADMIN
+    participant F as 前端
+    participant B as 后端
+    participant O as OSS
+    participant K as Kimi K2.6
+
+    U->>F: 进入 M15 录入页
+    F->>B: GET /me (鉴权)
+    B->>B: 校验 role === SUPER_ADMIN
+    B-->>F: 通过，允许访问
+
+    U->>F: 选店 + 选日期 + 选图
+    F->>F: 客户端预校验（尺寸/格式）
+    F->>B: POST /ai-ocr/jobs (含 hash)
+    B->>B: 查 hash 去重
+    B-->>F: jobId + 预签名 URL
+    F->>O: PUT 图片直传
+    O-->>F: 上传成功
+    F->>B: POST /ai-ocr/jobs/:id/recognize
+
+    B->>B: 构建 Prompt（含门店上下文）
+    B->>K: 多模态 API（图片 URL + Prompt）
+    Note over K: K2.6 识别<br/>JSON 结构化输出
+    K-->>B: rawResult + confidence
+    B->>B: Schema 校验
+    B->>B: 保存 rawResult（快照，永不改）
+    B-->>F: 核对页数据
+
+    U->>F: 逐字段核对 + 修改
+    F->>F: 追踪 editedFields
+    U->>F: 点击"确认提交"
+    F->>B: POST /ai-ocr/jobs/:id/confirm<br/>(finalData, editedFields, reviewDuration)
+
+    B->>B: 运行异常检测 BR-507
+    B->>B: 写入 StoreDailyData (source=AI_OCR)
+    B->>B: 写入 AIOcrAuditLog
+    B->>B: 通知相关加盟商 + 运营
+    B-->>F: 提交成功
+    F->>U: ✅ 数据已入库
 ```
 
 ---
