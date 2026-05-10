@@ -41,6 +41,14 @@ Irys 是一个面向媒体/连锁企业的**中台管理系统**，集中管理�
 | [docs/ai-tools-registry.md](./docs/ai-tools-registry.md) | 🔧 32 个 AI 工具定义（15 查询 + 15 写入 + 2 OCR） |
 | [docs/ai-ocr-module.md](./docs/ai-ocr-module.md) | 🖼️ M15 AI OCR 数据录入详细 PRD |
 
+### 🚀 小白开发指南（开始动手必读）⭐
+
+| 文档 | 说明 |
+|------|------|
+| **[docs/dev-workflow.md](./docs/dev-workflow.md)** | 🎯 **主开发手册 · 92 步骤清单（每步含 AI 提示词 + 验收清单）** |
+| [docs/dev-index.md](./docs/dev-index.md) | 📚 功能 → 文档 索引表（做什么功能查什么文档） |
+| [.cursorrules](./.cursorrules) | 🤖 Cursor AI 规则文件（自动生效，让 AI 按小白模式回复） |
+
 ### 待产出（后续阶段）
 
 | 文档 | 阶段 | 说明 |
