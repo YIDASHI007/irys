@@ -1,0 +1,192 @@
+# Irys 项目 · Cursor AI 规则
+
+## 🎯 项目简介
+
+这是一个企业管理后台 + 招商小程序 + AI 智能助手一体化平台。
+完整需求见 `docs/requirements.md`,共 15 个功能模块。
+
+## 👤 我的身份(非常重要)
+
+- 我是**编程小白**,没有任何开发经验
+- 我靠 AI 辅助独立开发这个项目
+- 请用**中文**回复我
+- 请把我当成一个**刚学会打字的人**,不要用行业黑话
+
+## 🛠️ 技术栈(必须严格遵守,不要擅自替换)
+
+### Monorepo
+- pnpm workspace
+- Turborepo(可选)
+
+### 后端
+- NestJS 10 + TypeScript
+- Prisma ORM
+- PostgreSQL 15(开发可用 SQLite)
+- Redis(缓存 + BullMQ 队列)
+- JWT 鉴权
+- class-validator + class-transformer
+- pino 日志
+- Swagger 文档
+
+### 前端(后台)
+- Vue 3(Composition API)+ TypeScript
+- Vite
+- Element Plus(UI 组件库)
+- Pinia(状态管理)
+- Vue Router
+- Axios
+
+### 小程序
+- uni-app + Vue 3 + TypeScript
+
+### AI
+- 月之暗面 Kimi(OpenAI 兼容协议)
+- base_url: https://api.moonshot.cn/v1
+
+### 存储
+- 开发:本地文件系统 / MinIO
+- 生产:阿里云 OSS(预留接口)
+
+## 📝 代码风格要求
+
+### 1. 代码必须简单易懂
+- 小白能看懂的代码 > 看起来高级的代码
+- 能用 if else 就不要用三元表达式套娃
+- 能用 for 循环就不要硬塞函数式编程
+- 变量名用清晰的英文,不要用 a b c x y
+
+### 2. 每段关键代码要写中文注释
+```typescript
+// ❌ 不好
+function validatePassword(pwd: string): boolean {
+  return pwd.length >= 8 && /[A-Za-z]/.test(pwd) && /\d/.test(pwd);
+}
+
+// ✅ 好
+// BR-103: 密码强度校验,必须包含字母+数字,长度 ≥ 8
+function validatePassword(pwd: string): boolean {
+  // 长度至少 8 位
+  if (pwd.length < 8) return false;
+
+  // 必须包含字母
+  const hasLetter = /[A-Za-z]/.test(pwd);
+
+  // 必须包含数字
+  const hasNumber = /\d/.test(pwd);
+
+  return hasLetter && hasNumber;
+}
+```
+
+### 3. 一次只做一件事
+- 不要一次给我生成超过 100 行代码
+- 不要一次修改超过 3 个文件
+- 优先把"能跑"搞定,再做"优雅"
+
+### 4. 禁用高级特性(小白看不懂)
+- ❌ 装饰器里套装饰器
+- ❌ 过度的泛型
+- ❌ 函数式编程技巧(reduce 嵌套、柯里化)
+- ❌ any 类型(除非有注释说明)
+- ❌ 自己造轮子(能用现成库就用现成库)
+
+### 5. 错误处理
+- 不要 try-catch 套娃
+- 错误消息要具体、用中文
+- 不要隐藏错误,有错就抛出来
+
+## 🔒 业务规则(必须引用)
+
+所有业务规则在 `docs/business-rules.md`,编号 BR-XXX。
+写相关代码时必须在注释里引用,例如:
+
+```typescript
+// BR-104: 连续失败 5 次锁定 15 分钟
+if (failedCount >= 5) {
+  throw new ForbiddenException('账号已锁定,请 15 分钟后再试');
+}
+```
+
+## 🚫 AI 辅助时的硬性规则
+
+### 永远不要
+1. ❌ 一次生成整个功能模块,哪怕我让你做
+2. ❌ 修改我没让你修改的文件
+3. ❌ 添加我没要求的功能
+4. ❌ 使用 `any` 类型(除非我明确同意)
+5. ❌ 跳过错误处理
+6. ❌ 硬编码 API Key、密码、Token
+7. ❌ 在数据库里写死敏感数据
+
+### 必须要做
+1. ✅ 给我代码前,先说明你要改哪些文件
+2. ✅ 每个代码块 < 50 行时就可以发
+3. ✅ 涉及新依赖包,先告诉我要装什么,再给代码
+4. ✅ 涉及环境变量,告诉我加到 .env.example
+5. ✅ 给我代码后,告诉我怎么测试
+6. ✅ 预感我会踩坑,主动提醒
+
+## 📂 项目结构约定
+
+```
+irys/
+├── apps/
+│   ├── backend/          NestJS 后端
+│   ├── admin/            Vue 3 后台
+│   └── mini/             uni-app 小程序
+├── packages/
+│   ├── shared-types/     共享类型
+│   └── shared-utils/     共享工具
+├── docs/                 文档
+├── docker-compose.yml    开发环境
+└── .env.example          环境变量示例
+```
+
+## 💬 回复风格
+
+- 用中文回复
+- 用列表 + 代码块组织内容,便于小白阅读
+- 关键操作用 **加粗** 提醒
+- 重要警告用 ⚠️ 标注
+- 测试步骤要具体(说"访问 localhost:3000",不要说"打开浏览器")
+
+## 🎓 教学责任
+
+如果我问了一个很基础的问题,不要不耐烦。
+我会成长的,但需要时间。
+用生活化的比喻帮我理解,比如:
+- "JWT 像你的身份证,每次来办事都要带"
+- "数据库迁移像搬家前先画新房子的图纸"
+- "middleware 像门口的保安,所有人进来都要先过他"
+
+## 📋 优先级提示词
+
+如果我给你的任务很模糊,主动问我:
+1. 这个功能最重要的是什么?
+2. 先做哪一部分?
+3. 可以忽略哪些细节?
+
+## 🔗 文档位置快查
+
+- 需求总览:`docs/requirements.md`
+- 业务规则:`docs/business-rules.md`(BR-XXX 编号)
+- 用户旅程:`docs/user-journeys.md`
+- AI 安全:`docs/ai-security.md`
+- AI 工具:`docs/ai-tools-registry.md`
+- OCR 模块:`docs/ai-ocr-module.md`
+- 开发流程:`docs/dev-workflow.md`(按步骤开发)
+- 功能索引:`docs/dev-index.md`(功能 → 文档映射)
+
+## ⚡ 我用的开发工具
+
+- Cursor(主力编辑器)
+- pnpm 包管理
+- GitHub Desktop(Git 图形化)
+- Chrome 浏览器
+- Postman / Insomnia(接口测试)
+
+## 🎯 我现在最需要的
+
+**能跑起来 > 代码优雅**
+**能理解 > 功能完整**
+**一步一步 > 一次到位**
